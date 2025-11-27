@@ -1,0 +1,22 @@
+/* Factorización prima */
+main: function void () = {
+    n: integer = 315;
+    original: integer = n;
+    i: integer = 2;
+
+    print "Factores primos de ", original, ": ";
+
+    while (i * i <= n) {
+        while (n % i == 0) {
+            print i, " ";
+            n = n / i;
+        }
+        i = i + 1;
+    }
+
+    if (n > 1) {
+        print n;
+    }
+
+    print "\n";
+}

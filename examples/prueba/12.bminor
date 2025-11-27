@@ -1,0 +1,26 @@
+/* Números de Armstrong de 3 dígitos */
+main: function void () = {
+    num: integer;
+    original: integer;
+    sum: integer;
+    digit: integer;
+    temp: integer;
+
+    print "Numeros de Armstrong de 3 digitos:\n";
+
+    for (num = 100; num < 1000; num++) {
+        original = num;
+        sum = 0;
+        temp = num;
+
+        while (temp > 0) {
+            digit = temp % 10;
+            sum = sum + digit * digit * digit;
+            temp = temp / 10;
+        }
+
+        if (sum == original) {
+            print num, "\n";
+        }
+    }
+}

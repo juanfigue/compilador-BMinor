@@ -1,0 +1,32 @@
+/* Encontrar máximo y mínimo en un array */
+SIZE: integer = 7;
+nums: array [SIZE] integer;
+
+main: function void () = {
+    i: integer;
+    max: integer;
+    min: integer;
+
+    nums[0] = 45;
+    nums[1] = 12;
+    nums[2] = 89;
+    nums[3] = 23;
+    nums[4] = 67;
+    nums[5] = 5;
+    nums[6] = 34;
+
+    max = nums[0];
+    min = nums[0];
+
+    for (i = 1; i < SIZE; i++) {
+        if (nums[i] > max) {
+            max = nums[i];
+        }
+        if (nums[i] < min) {
+            min = nums[i];
+        }
+    }
+
+    print "Maximo: ", max, "\n";
+    print "Minimo: ", min, "\n";
+}

@@ -1,0 +1,9 @@
+// Prueba identificadores y números
+integer variable_123 = 999;
+float _temp = 98.6;
+integer max_length_identifier_12345678 = 1; // 32 chars
+integer numero_muy_grande = 12345678901234567890;
+float cientifico = 1.23e-5;
+
+
+/**/

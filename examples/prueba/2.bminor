@@ -1,0 +1,18 @@
+/* Serie de Fibonacci */
+main: function void () = {
+    n: integer = 15;
+    a: integer = 0;
+    b: integer = 1;
+    i: integer;
+    temp: integer;
+
+    print a, "\n";  
+    print b, "\n";  
+
+    for (i = 2; i < n; i++) {
+        temp = a + b;
+        print temp, "\n"; 
+        a = b;
+        b = temp;
+    }
+}

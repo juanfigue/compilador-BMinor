@@ -1,0 +1,4 @@
+// Operadores inválidos
+var x = 10 =< 20;   // Operador <= escrito al revés
+var y = 5 <=> 10;    // Operador != alternativo no soportado
+var z = 10 >=5;     // Operador & no definido

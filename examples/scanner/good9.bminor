@@ -1,0 +1,23 @@
+// Programa de ejemplo completo
+function integer factorial(integer n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+function void main() {
+    integer num = 5;
+    float resultado = factorial(num) * 1.0;
+    
+    print("El factorial de ");
+    print(num);
+    print(" es ");
+    print(resultado);
+    
+    if (resultado > 100) {
+        print("Es un número grande");
+    } else {
+        print("Es un número pequeño");
+    }
+}

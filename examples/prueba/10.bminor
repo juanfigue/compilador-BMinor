@@ -1,0 +1,20 @@
+/* Conjetura de Collatz */
+main: function void () = {
+    n: integer = 27;
+    steps: integer = 0;
+
+    print "Secuencia de Collatz para ", n, ":\n";
+    print n, " ";
+
+    while (n != 1) {
+        if (n % 2 == 0) {
+            n = n / 2;
+        } else {
+            n = 3 * n + 1;
+        }
+        print n, " ";
+        steps = steps + 1;
+    }
+
+    print "\nPasos: ", steps, "\n";
+}

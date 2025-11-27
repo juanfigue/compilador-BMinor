@@ -1,0 +1,6 @@
+/* Error: Comentario sin cerrar*/
+var x = 10;
+
+// Error: Comentario multilínea con formato incorrecto
+Esteesuncomentariomalformado */
+/* Error: Comentario sin cerrar

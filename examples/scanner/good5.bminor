@@ -1,0 +1,6 @@
+// Prueba caracteres especiales
+char newline = '\n';
+char tab = '\t';
+char quote = '\'';
+string path = "C:\\docs\\file.txt";
+string message = "Línea 1\nLínea 2";

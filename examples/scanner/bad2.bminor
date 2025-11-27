@@ -1,0 +1,3 @@
+// Error: Secuencia de escape no reconocida
+char c = '\x';  
+string s = "Holamundo";

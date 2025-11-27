@@ -1,0 +1,4 @@
+// Errores en literales
+char c1 = 'ab';    // Múltiples caracteres
+char c2 = ';       // Comilla simple sin cerrar
+string s1 = "Hola; // Comilla doble sin cerrar

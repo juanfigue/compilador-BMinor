@@ -1,0 +1,19 @@
+/* Contar dígitos y calcular su suma */
+main: function void () = {
+    num: integer = 123456789;
+    original: integer = num;
+    count: integer = 0;
+    sum: integer = 0;
+    digit: integer;
+
+    while (num > 0) {
+        digit = num % 10;
+        count = count + 1;
+        sum = sum + digit;
+        num = num / 10;
+    }
+
+    print "Numero: ", original, "\n";
+    print "Cantidad de digitos: ", count, "\n";
+    print "Suma de digitos: ", sum, "\n";
+}

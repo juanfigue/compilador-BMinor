@@ -1,0 +1,3 @@
+// Prueba expresiones anidadas
+float calculo = (3.5 + 2 * (7 - x)) / (y ^ 2 % 3);
+boolean logica = (x > 0) && ((y < 10) || (z == 5)) && !error;

@@ -1,0 +1,15 @@
+/* Tabla de multiplicar del 1 al 10 */
+main: function void () = {
+    i: integer;
+    j: integer;
+    result: integer;
+
+    for (i = 1; i <= 10; i++) {
+        print "Tabla del ", i, ":\n";
+        for (j = 1; j <= 10; j++) {
+            result = i * j;
+            print i, " x ", j, " = ", result, "\n";
+        }
+        print "\n";
+    }
+}

@@ -1,0 +1,142 @@
+// Programa en B-Minor para análisis numérico
+// Verifica paridad, calcula factorial y verifica múltiplos de 2
+
+
+
+decl ::=
+    decl decl_list
+
+
+function boolean esPar(integer numero) {
+    // Verificar si un número es par usando módulo
+    if (numero % 2 == 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function boolean esMultiploDeDos(integer numero) {
+    // Verificar si es múltiplo de 2 usando división
+    if (numero % 2 == 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function integer factorial(integer n) {
+    // Calcular factorial de un número (recursivo)
+    if (n <= 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+function void main() {
+    integer numero = 5;
+    
+    // Verificar si el número es par
+    boolean par = esPar(numero);
+    if (par == true) {
+        print("El número ");
+        print(numero);
+        print(" es par");
+    } else {
+        print("El número ");
+        print(numero);
+        print(" es impar");
+    }
+    
+    // Verificar si es múltiplo de 2 (debería dar el mismo resultado)
+    boolean multiplo = esMultiploDeDos(numero);
+    if (multiplo == true) {
+        print("El número ");
+        print(numero);
+        print(" es múltiplo de 2");
+    } else {
+        print("El número ");
+        print(numero);
+        print(" NO es múltiplo de 2");
+    }
+    
+    // Calcular el factorial
+    integer resultadoFactorial = factorial(numero);
+    print("El factorial de ");
+    print(numero);
+    print(" es ");
+    print(resultadoFactorial);
+    
+    // Probar con diferentes números
+    print("\n=== Probando con otros números ===");
+    
+    array[5] integer numeros = {2, 7, 10, 0, 8};
+    integer i = 0;
+    
+    while (i < 5) {
+        integer numActual = numeros[i];
+        
+        // Verificar paridad
+        boolean esParActual = esPar(numActual);
+        if (esParActual == true) {
+            print("Número ");
+            print(numActual);
+            print(": PAR");
+        } else {
+            print("Número ");
+            print(numActual);
+            print(": IMPAR");
+        }
+        
+        // Calcular factorial (solo para números pequeños)
+        if (numActual <= 10) {
+            integer fact = factorial(numActual);
+            print("  Factorial: ");
+            print(fact);
+        } else {
+            print("Factorial: Demasiado grande para calcular");
+        }
+        
+        i = i + 1;
+    }
+    
+    // Ejemplo con entrada del usuario (simulado)
+    print("\n=== Análisis de rango ===");
+    integer inicio = 1;
+    integer fin = 8;
+    integer contador = inicio;
+    
+    while (contador <= fin) {
+        boolean parContador = esPar(contador);
+        boolean multiploContador = esMultiploDeDos(contador);
+        
+        print("Número: ");
+        print(contador);
+        
+        if (parContador == true && multiploContador == true) {
+            print(" - Es par y múltiplo de 2 ✓");
+        } else if (parContador == false && multiploContador == false) {
+            print(" - Es impar y NO múltiplo de 2 ✗");
+        } else {
+            print(" - ¡Inconsistencia en los cálculos!");
+        }
+        
+        contador = contador + 1;
+    }
+    
+    // Demostración de que paridad y múltiplo de 2 son equivalentes
+    print("\n=== Demostración equivalencia ===");
+    integer testNum = 15;
+    
+    boolean testPar = esPar(testNum);
+    boolean testMultiplo = esMultiploDeDos(testNum);
+    
+    if (testPar == testMultiplo) {
+        print("✓ Paridad y múltiplo de 2 son equivalentes");
+    } else {
+        print("¡Error! Deberían ser equivalentes");
+    }
+    
+    print("Programa terminado");
+}

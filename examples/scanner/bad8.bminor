@@ -1,0 +1,4 @@
+// Combinaciones de operadores no permitidas
+var x = 10 * / 5;
+var y = 10 &&& 20;
+var z = 10 ! 5;

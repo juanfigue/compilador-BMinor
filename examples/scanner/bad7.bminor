@@ -1,0 +1,4 @@
+// Palabras reservadas incorrectas
+intejer x = 10;
+whiile (true) { }
+retrun 0;

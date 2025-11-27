@@ -1,0 +1,3 @@
+// Error: Caracteres especiales no permitidos
+char precioproducto = 25.99;
+char 2var = 10;  // Error: Empieza con número

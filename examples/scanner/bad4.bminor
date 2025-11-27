@@ -1,0 +1,4 @@
+// Errores en literales flotantes
+float f1 = 1.;      // Exponente sin dígitos
+float f2 = 3.1e45; // Múltiples puntos decimales
+float f3 = a.e;     // Punto sin dígitos

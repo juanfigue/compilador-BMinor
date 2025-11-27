@@ -1,0 +1,16 @@
+/* Máximo Común Divisor */
+main: function void () = {
+    a: integer = 48;
+    b: integer = 18;
+    temp: integer;
+
+    print "MCD de ", a, " y ", b, " es: ";
+
+    while (b != 0) {
+        temp = b;
+        b = a % b;
+        a = temp;
+    }
+
+    print a, "\n";
+}

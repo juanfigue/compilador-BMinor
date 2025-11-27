@@ -1,0 +1,18 @@
+/* Verificar si un número es palíndromo */
+main: function void () = {
+    num: integer = 12321;
+    original: integer = num;
+    reversed: integer = 0;
+    digit: integer;
+
+    for (; num > 0; num = num / 10) {
+        digit = num % 10;
+        reversed = reversed * 10 + digit;
+    }
+
+    if (original == reversed) {
+        print original, " es palindromo\n";
+    } else {
+        print original, " NO es palindromo\n";
+    }
+}

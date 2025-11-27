@@ -1,0 +1,8 @@
+// Prueba declaración de funciones
+integer suma(integer a, integer b) {
+    return a + b;
+}
+
+void saludar() {
+    print("¡Hola mundo!");
+}

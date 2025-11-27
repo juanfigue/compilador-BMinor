@@ -1,0 +1,7 @@
+// Prueba declaración de variables
+integer num = 42;
+float pi = 3.1416;
+boolean flag = true;
+char letter = 'A';
+string greeting = "Hola";
+array[10] integer numbers;

@@ -1,0 +1,2 @@
+/* Error: Identificador excede límite de 32 chars */
+integer: paraestaVariableEsDemasiadoLargaParaSerValida = 10;

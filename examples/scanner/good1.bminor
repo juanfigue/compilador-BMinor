@@ -1,0 +1,5 @@
+// Prueba operadores relacionales y lógicos
+boolean result = (5 < 10) && (7 != 3) || !false;
+if (x >= 0 && x <= 100) {
+    print("Dentro de rango");
+}
