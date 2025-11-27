@@ -27,7 +27,7 @@ mandelbrot: function integer (x: float, y: float, max_iter: integer) = {
 }
 
 // Función para convertir iteraciones a caracteres ASCII
-get_char: function integer (iterations: integer, max_iter: integer) = {
+get_char: function char (iterations: integer, max_iter: integer) = {
     if (iterations == max_iter) {
         return ' ';  // Punto dentro del conjunto
     } else if (iterations > max_iter * 3 / 4) {
