@@ -38,7 +38,7 @@ class LLVMCodegen(Visitor):
         self.builder = None
         self.functions = {}
         self.locals = {}
-        self.globals = {}  # Añadido para variables globales
+        self.globals = {}
         self.global_strings = {}
         self.context_stack = []
         self.current_func = None
@@ -70,7 +70,7 @@ class LLVMCodegen(Visitor):
     def get_global_string(self, s: str):
         if s not in self.global_strings:
             arr = ir.Constant(
-                ir.ArrayType(I8, len(s)+1), # +1 para el terminador nulo
+                ir.ArrayType(I8, len(s)+1),
                 bytearray(s.encode('utf-8') + b'\0')
             )
             
@@ -81,6 +81,85 @@ class LLVMCodegen(Visitor):
             self.global_strings[s] = gv
         
         return self.builder.bitcast(self.global_strings[s], I8_PTR)
+
+    def infer_type(self, node):
+        """Infiere el tipo de un nodo de expresión"""
+        if isinstance(node, Integer):
+            return 'integer'
+        elif isinstance(node, Float):
+            return 'float'
+        elif isinstance(node, Boolean):
+            return 'boolean'
+        elif isinstance(node, String):
+            return 'string'
+        elif isinstance(node, Variable):
+            # Buscar tipo de variable
+            var_ptr = self.locals.get(node.name) or self.globals.get(node.name)
+            if var_ptr:
+                if var_ptr.type.pointee == I32:
+                    return 'integer'
+                elif var_ptr.type.pointee == F64:
+                    return 'float'
+                elif var_ptr.type.pointee == I1:
+                    return 'boolean'
+                elif var_ptr.type.pointee == I8:
+                    return 'char'
+            return 'integer'  # Default
+        elif isinstance(node, BinaryOp):
+            # Inferir tipo basado en operandos
+            left_type = self.infer_type(node.left)
+            right_type = self.infer_type(node.right)
+            
+            # Operadores de comparación siempre devuelven boolean
+            if node.op in ['<', '<=', '>', '>=', '==', '!=']:
+                return 'boolean'
+            
+            # Si alguno es float, el resultado es float
+            if left_type == 'float' or right_type == 'float':
+                return 'float'
+            
+            return 'integer'
+        elif isinstance(node, FunctionCall):
+            # Buscar tipo de retorno de función
+            func = self.functions.get(node.name)
+            if func:
+                if func.return_value.type == I32:
+                    return 'integer'
+                elif func.return_value.type == F64:
+                    return 'float'
+                elif func.return_value.type == I8:
+                    return 'char'
+                elif func.return_value.type == I1:
+                    return 'boolean'
+            return 'integer'
+        
+        return 'integer'
+
+    def cast_to_type(self, value, target_type):
+        """Convierte un valor al tipo objetivo si es necesario"""
+        current_type = value.type
+        
+        # Si ya es del tipo correcto, retornar
+        if current_type == target_type:
+            return value
+        
+        # Integer a Float
+        if current_type == I32 and target_type == F64:
+            return self.builder.sitofp(value, F64)
+        
+        # Float a Integer
+        if current_type == F64 and target_type == I32:
+            return self.builder.fptosi(value, I32)
+        
+        # Integer a Char
+        if current_type == I32 and target_type == I8:
+            return self.builder.trunc(value, I8)
+        
+        # Char a Integer
+        if current_type == I8 and target_type == I32:
+            return self.builder.sext(value, I32)
+        
+        return value
 
     @multimethod
     def visit(self, node: Program):
@@ -120,7 +199,18 @@ class LLVMCodegen(Visitor):
                 
                 # Asegurar terminador
                 if not self.builder.block.is_terminated:
-                    self.builder.ret_void()
+                    if self.current_func.return_value.type == VOID:
+                        self.builder.ret_void()
+                    else:
+                        # Retornar valor por defecto
+                        if self.current_func.return_value.type == I32:
+                            self.builder.ret(ir.Constant(I32, 0))
+                        elif self.current_func.return_value.type == F64:
+                            self.builder.ret(ir.Constant(F64, 0.0))
+                        elif self.current_func.return_value.type == I8:
+                            self.builder.ret(ir.Constant(I8, 0))
+                        else:
+                            self.builder.ret_void()
                 
                 self.pop_context()
 
@@ -131,10 +221,8 @@ class LLVMCodegen(Visitor):
         if isinstance(node, Declaration):
             ty = _typemap[node.type]
             
-            # Crear variable global
             gv = ir.GlobalVariable(self.module, ty, name=node.name)
             
-            # Inicializar
             if node.value:
                 if isinstance(node.value, Integer):
                     gv.initializer = ir.Constant(ty, node.value.value)
@@ -145,21 +233,22 @@ class LLVMCodegen(Visitor):
                 else:
                     gv.initializer = ir.Constant(ty, 0)
             else:
-                gv.initializer = ir.Constant(ty, 0)
+                if ty == F64:
+                    gv.initializer = ir.Constant(ty, 0.0)
+                else:
+                    gv.initializer = ir.Constant(ty, 0)
             
             self.globals[node.name] = gv
             
         elif isinstance(node, ArrayDeclaration):
             elem_type = _typemap[node.type]
             
-            # Determinar tamaño
             if node.size_expr and isinstance(node.size_expr, Variable):
-                # Si el tamaño es una variable (como N), buscarla
                 if node.size_expr.name in self.globals:
                     size_var = self.globals[node.size_expr.name]
                     size = size_var.initializer.constant
                 else:
-                    size = 100  # Fallback
+                    size = 100
             elif node.size_expr and isinstance(node.size_expr, Integer):
                 size = node.size_expr.value
             elif node.values:
@@ -167,11 +256,9 @@ class LLVMCodegen(Visitor):
             else:
                 size = 100
             
-            # Crear array global
             array_type = ir.ArrayType(elem_type, size)
             gv = ir.GlobalVariable(self.module, array_type, name=node.name)
             
-            # Inicializar array
             if node.values:
                 init_values = []
                 for val in node.values:
@@ -179,12 +266,16 @@ class LLVMCodegen(Visitor):
                         init_values.append(ir.Constant(elem_type, val.value))
                     elif isinstance(val, Boolean):
                         init_values.append(ir.Constant(elem_type, 1 if val.value else 0))
+                    elif isinstance(val, Float):
+                        init_values.append(ir.Constant(elem_type, val.value))
                     else:
                         init_values.append(ir.Constant(elem_type, 0))
                 gv.initializer = ir.Constant(array_type, init_values)
             else:
-                # Inicializar a cero
-                gv.initializer = ir.Constant(array_type, [ir.Constant(elem_type, 0)] * size)
+                if elem_type == F64:
+                    gv.initializer = ir.Constant(array_type, [ir.Constant(elem_type, 0.0)] * size)
+                else:
+                    gv.initializer = ir.Constant(array_type, [ir.Constant(elem_type, 0)] * size)
             
             self.globals[node.name] = gv
 
@@ -197,7 +288,6 @@ class LLVMCodegen(Visitor):
 
     @multimethod
     def visit(self, node: FunctionDeclaration):
-        # Ya procesado en visit(Program)
         pass
 
     @multimethod
@@ -209,7 +299,15 @@ class LLVMCodegen(Visitor):
         
         if node.value:
             val = node.value.accept(self)
+            # Realizar conversión de tipo si es necesario
+            val = self.cast_to_type(val, ty)
             self.builder.store(val, alloca)
+        else:
+            # Inicializar con valor por defecto
+            if ty == F64:
+                self.builder.store(ir.Constant(ty, 0.0), alloca)
+            else:
+                self.builder.store(ir.Constant(ty, 0), alloca)
 
     @multimethod
     def visit(self, node: ArrayDeclaration):
@@ -228,8 +326,12 @@ class LLVMCodegen(Visitor):
         alloca = self.builder.alloca(array_type, name=node.name)
         self.locals[node.name] = alloca
         
-        # Inicializar a cero
-        zero = ir.Constant(elem_type, 0)
+        # Inicializar
+        if elem_type == F64:
+            zero = ir.Constant(elem_type, 0.0)
+        else:
+            zero = ir.Constant(elem_type, 0)
+            
         for i in range(size):
             ptr = self.builder.gep(
                 alloca, 
@@ -240,7 +342,6 @@ class LLVMCodegen(Visitor):
     @multimethod
     def visit(self, node: ArrayAccess):
         """Acceso a elemento de array"""
-        # Buscar primero en locales, luego en globales
         array_ptr = self.locals.get(node.name)
         if not array_ptr:
             array_ptr = self.globals.get(node.name)
@@ -259,23 +360,25 @@ class LLVMCodegen(Visitor):
         for expr in node.expressions:
             val = expr.accept(self)
             
-            # Determinar tipo y llamar función correcta
-            if isinstance(expr, (Integer, Variable, BinaryOp, ArrayAccess)):
-                if hasattr(expr, 'type'):
-                    if expr.type == 'integer':
-                        self.builder.call(self.runtime['_printi'], [val])
-                    elif expr.type == 'boolean':
-                        self.builder.call(self.runtime['_printb'], [val])
-                    elif expr.type == 'float':
-                        self.builder.call(self.runtime['_printf'], [val])
-                    elif expr.type == 'char':
-                        self.builder.call(self.runtime['_printc'], [val])
-                else:
-                    # Por defecto, asumir integer
-                    self.builder.call(self.runtime['_printi'], [val])
-            elif isinstance(expr, String):
-                ptr = self.get_global_string(expr.value)
-                self.builder.call(self.runtime['_prints'], [ptr])
+            # Inferir tipo de expresión
+            expr_type = self.infer_type(expr)
+            
+            if expr_type == 'integer':
+                val = self.cast_to_type(val, I32)
+                self.builder.call(self.runtime['_printi'], [val])
+            elif expr_type == 'boolean':
+                val = self.cast_to_type(val, I1)
+                self.builder.call(self.runtime['_printb'], [val])
+            elif expr_type == 'float':
+                val = self.cast_to_type(val, F64)
+                self.builder.call(self.runtime['_printf'], [val])
+            elif expr_type == 'char':
+                val = self.cast_to_type(val, I8)
+                self.builder.call(self.runtime['_printc'], [val])
+            elif expr_type == 'string' or isinstance(expr, String):
+                if not isinstance(val.type, ir.PointerType):
+                    val = self.get_global_string(str(expr.value))
+                self.builder.call(self.runtime['_prints'], [val])
 
     @multimethod
     def visit(self, node: WhileStmt):
@@ -287,6 +390,7 @@ class LLVMCodegen(Visitor):
         
         self.builder.position_at_end(cond_bb)
         cond_val = node.condition.accept(self)
+        cond_val = self.cast_to_type(cond_val, I1)
         self.builder.cbranch(cond_val, body_bb, end_bb)
 
         self.builder.position_at_end(body_bb)
@@ -311,6 +415,7 @@ class LLVMCodegen(Visitor):
         
         self.builder.position_at_end(cond_bb)
         cond_val = node.condition.accept(self)
+        cond_val = self.cast_to_type(cond_val, I1)
         self.builder.cbranch(cond_val, body_bb, end_bb)
         
         self.builder.position_at_end(end_bb)
@@ -322,6 +427,7 @@ class LLVMCodegen(Visitor):
         end_bb = self.builder.append_basic_block('if_end')
         
         cond_val = node.condition.accept(self)
+        cond_val = self.cast_to_type(cond_val, I1)
         
         if node.else_branch:
             self.builder.cbranch(cond_val, then_bb, else_bb)
@@ -359,6 +465,7 @@ class LLVMCodegen(Visitor):
         self.builder.position_at_end(cond_bb)
         if node.condition:
             cond_val = node.condition.accept(self)
+            cond_val = self.cast_to_type(cond_val, I1)
             self.builder.cbranch(cond_val, body_bb, end_bb)
         else:
             self.builder.branch(body_bb)
@@ -379,6 +486,9 @@ class LLVMCodegen(Visitor):
     def visit(self, node: ReturnStatement):
         if node.value:
             val = node.value.accept(self)
+            # Convertir al tipo de retorno de la función
+            expected_type = self.current_func.return_value.type
+            val = self.cast_to_type(val, expected_type)
             self.builder.ret(val)
         else:
             self.builder.ret_void()
@@ -393,18 +503,19 @@ class LLVMCodegen(Visitor):
         if isinstance(node.target, Variable):
             val = node.value.accept(self)
             
-            # Buscar en locales primero, luego globales
             alloca = self.locals.get(node.target.name)
             if not alloca:
                 alloca = self.globals.get(node.target.name)
             
             if alloca:
+                # Convertir al tipo de la variable
+                target_type = alloca.type.pointee
+                val = self.cast_to_type(val, target_type)
                 self.builder.store(val, alloca)
             
         elif isinstance(node.target, ArrayAccess):
             val = node.value.accept(self)
             
-            # Buscar array
             array_ptr = self.locals.get(node.target.name)
             if not array_ptr:
                 array_ptr = self.globals.get(node.target.name)
@@ -412,6 +523,9 @@ class LLVMCodegen(Visitor):
             if array_ptr:
                 index = node.target.index.accept(self)
                 ptr = self.builder.gep(array_ptr, [ir.Constant(I32, 0), index])
+                # Convertir al tipo del array
+                target_type = ptr.type.pointee
+                val = self.cast_to_type(val, target_type)
                 self.builder.store(val, ptr)
 
     @multimethod
@@ -419,19 +533,45 @@ class LLVMCodegen(Visitor):
         left = node.left.accept(self)
         right = node.right.accept(self)
         
-        if node.op == '+': return self.builder.add(left, right)
-        if node.op == '-': return self.builder.sub(left, right)
-        if node.op == '*': return self.builder.mul(left, right)
-        if node.op == '/': return self.builder.sdiv(left, right)
-        if node.op == '%': return self.builder.srem(left, right)
+        # Determinar si alguno es float
+        left_is_float = left.type == F64
+        right_is_float = right.type == F64
+        is_float_op = left_is_float or right_is_float
         
-        if node.op == '<': return self.builder.icmp_signed('<', left, right)
-        if node.op == '<=': return self.builder.icmp_signed('<=', left, right)
-        if node.op == '>': return self.builder.icmp_signed('>', left, right)
-        if node.op == '>=': return self.builder.icmp_signed('>=', left, right)
-        if node.op == '==': return self.builder.icmp_signed('==', left, right)
-        if node.op == '!=': return self.builder.icmp_signed('!=', left, right)
+        # Promover a float si es necesario
+        if is_float_op:
+            left = self.cast_to_type(left, F64)
+            right = self.cast_to_type(right, F64)
         
+        # Operaciones aritméticas
+        if node.op == '+':
+            return self.builder.fadd(left, right) if is_float_op else self.builder.add(left, right)
+        if node.op == '-':
+            return self.builder.fsub(left, right) if is_float_op else self.builder.sub(left, right)
+        if node.op == '*':
+            return self.builder.fmul(left, right) if is_float_op else self.builder.mul(left, right)
+        if node.op == '/':
+            return self.builder.fdiv(left, right) if is_float_op else self.builder.sdiv(left, right)
+        if node.op == '%':
+            return self.builder.srem(left, right)  # Solo para enteros
+        
+        # Operaciones de comparación
+        if is_float_op:
+            if node.op == '<': return self.builder.fcmp_ordered('<', left, right)
+            if node.op == '<=': return self.builder.fcmp_ordered('<=', left, right)
+            if node.op == '>': return self.builder.fcmp_ordered('>', left, right)
+            if node.op == '>=': return self.builder.fcmp_ordered('>=', left, right)
+            if node.op == '==': return self.builder.fcmp_ordered('==', left, right)
+            if node.op == '!=': return self.builder.fcmp_ordered('!=', left, right)
+        else:
+            if node.op == '<': return self.builder.icmp_signed('<', left, right)
+            if node.op == '<=': return self.builder.icmp_signed('<=', left, right)
+            if node.op == '>': return self.builder.icmp_signed('>', left, right)
+            if node.op == '>=': return self.builder.icmp_signed('>=', left, right)
+            if node.op == '==': return self.builder.icmp_signed('==', left, right)
+            if node.op == '!=': return self.builder.icmp_signed('!=', left, right)
+        
+        # Operaciones lógicas
         if node.op == '&&': return self.builder.and_(left, right)
         if node.op == '||': return self.builder.or_(left, right)
         
@@ -442,7 +582,10 @@ class LLVMCodegen(Visitor):
         expr_val = node.expr.accept(self)
         
         if node.op == '-':
-            return self.builder.neg(expr_val)
+            if expr_val.type == F64:
+                return self.builder.fneg(expr_val)
+            else:
+                return self.builder.neg(expr_val)
         elif node.op == '!':
             return self.builder.not_(expr_val)
         
@@ -450,46 +593,54 @@ class LLVMCodegen(Visitor):
 
     @multimethod
     def visit(self, node: PreInc):
-        # ++expr: incrementar y devolver nuevo valor
         var_ptr = self.locals.get(node.expr.name) or self.globals.get(node.expr.name)
         if var_ptr:
             old_val = self.builder.load(var_ptr)
-            new_val = self.builder.add(old_val, ir.Constant(I32, 1))
+            if old_val.type == F64:
+                new_val = self.builder.fadd(old_val, ir.Constant(F64, 1.0))
+            else:
+                new_val = self.builder.add(old_val, ir.Constant(I32, 1))
             self.builder.store(new_val, var_ptr)
             return new_val
         return ir.Constant(I32, 0)
 
     @multimethod
     def visit(self, node: PreDec):
-        # --expr: decrementar y devolver nuevo valor
         var_ptr = self.locals.get(node.expr.name) or self.globals.get(node.expr.name)
         if var_ptr:
             old_val = self.builder.load(var_ptr)
-            new_val = self.builder.sub(old_val, ir.Constant(I32, 1))
+            if old_val.type == F64:
+                new_val = self.builder.fsub(old_val, ir.Constant(F64, 1.0))
+            else:
+                new_val = self.builder.sub(old_val, ir.Constant(I32, 1))
             self.builder.store(new_val, var_ptr)
             return new_val
         return ir.Constant(I32, 0)
 
     @multimethod
     def visit(self, node: PostInc):
-        # expr++: devolver valor actual, luego incrementar
         var_ptr = self.locals.get(node.expr.name) or self.globals.get(node.expr.name)
         if var_ptr:
             old_val = self.builder.load(var_ptr)
-            new_val = self.builder.add(old_val, ir.Constant(I32, 1))
+            if old_val.type == F64:
+                new_val = self.builder.fadd(old_val, ir.Constant(F64, 1.0))
+            else:
+                new_val = self.builder.add(old_val, ir.Constant(I32, 1))
             self.builder.store(new_val, var_ptr)
-            return old_val  # Devolver valor ANTES del incremento
+            return old_val
         return ir.Constant(I32, 0)
 
     @multimethod
     def visit(self, node: PostDec):
-        # expr--: devolver valor actual, luego decrementar
         var_ptr = self.locals.get(node.expr.name) or self.globals.get(node.expr.name)
         if var_ptr:
             old_val = self.builder.load(var_ptr)
-            new_val = self.builder.sub(old_val, ir.Constant(I32, 1))
+            if old_val.type == F64:
+                new_val = self.builder.fsub(old_val, ir.Constant(F64, 1.0))
+            else:
+                new_val = self.builder.sub(old_val, ir.Constant(I32, 1))
             self.builder.store(new_val, var_ptr)
-            return old_val  # Devolver valor ANTES del decremento
+            return old_val
         return ir.Constant(I32, 0)
 
     @multimethod
@@ -510,7 +661,6 @@ class LLVMCodegen(Visitor):
     
     @multimethod
     def visit(self, node: Variable):
-        # Buscar en locales primero, luego globales
         var_ptr = self.locals.get(node.name)
         if not var_ptr:
             var_ptr = self.globals.get(node.name)
@@ -529,7 +679,16 @@ class LLVMCodegen(Visitor):
             error(f"Función no declarada: {node.name}")
             return ir.Constant(I32, 0)
         
-        args = [arg.accept(self) for arg in node.args]
+        # Evaluar argumentos y convertir tipos si es necesario
+        args = []
+        for i, arg in enumerate(node.args):
+            arg_val = arg.accept(self)
+            # Convertir al tipo esperado por el parámetro
+            if i < len(func.args):
+                expected_type = func.args[i].type
+                arg_val = self.cast_to_type(arg_val, expected_type)
+            args.append(arg_val)
+        
         return self.builder.call(func, args)
 
 
