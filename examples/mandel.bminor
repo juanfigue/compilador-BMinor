@@ -1,0 +1,99 @@
+/* Generador del Conjunto de Mandelbrot en B-minor */
+
+// Función para calcular si un punto pertenece al conjunto de Mandelbrot
+mandelbrot: function integer (x: float, y: float, max_iter: integer) = {
+    zr: float = 0.0;
+    zi: float = 0.0;
+    iter: integer = 0;
+    
+    while (iter < max_iter) {
+        zr2: float = zr * zr;
+        zi2: float = zi * zi;
+        
+        // Si |z| > 2, el punto escapa del conjunto
+        if (zr2 + zi2 > 4.0) {
+            return iter;
+        }
+        
+        // z = z^2 + c
+        temp: float = zr2 - zi2 + x;
+        zi = 2.0 * zr * zi + y;
+        zr = temp;
+        
+        iter = iter + 1;
+    }
+    
+    return max_iter;
+}
+
+// Función para convertir iteraciones a caracteres ASCII
+get_char: function integer (iterations: integer, max_iter: integer) = {
+    if (iterations == max_iter) {
+        return ' ';  // Punto dentro del conjunto
+    } else if (iterations > max_iter * 3 / 4) {
+        return '.';
+    } else if (iterations > max_iter / 2) {
+        return ':';
+    } else if (iterations > max_iter / 4) {
+        return '+';
+    } else if (iterations > max_iter / 8) {
+        return '*';
+    } else {
+        return '#';
+    }
+}
+
+main: function integer () = {
+    // Dimensiones de la imagen ASCII
+    width: integer = 80;
+    height: integer = 40;
+    max_iterations: integer = 100;
+    
+    // Rango del plano complejo a visualizar
+    x_min: float = -2.5;
+    x_max: float = 1.0;
+    y_min: float = -1.0;
+    y_max: float = 1.0;
+    
+    // Calcular el paso entre píxeles
+    x_step: float = (x_max - x_min) / width;
+    y_step: float = (y_max - y_min) / height;
+    
+    row: integer = 0;
+    col: integer = 0;
+    
+    print "Conjunto de Mandelbrot\n";
+    print "======================\n\n";
+    
+    // Iterar sobre cada fila
+    while (row < height) {
+        col = 0;
+        
+        // Iterar sobre cada columna
+        while (col < width) {
+            // Calcular coordenadas en el plano complejo
+            x: float = x_min + col * x_step;
+            y: float = y_max - row * y_step;
+            
+            // Calcular iteraciones para este punto
+            iterations: integer = mandelbrot(x, y, max_iterations);
+            
+            // Obtener carácter correspondiente
+            c: integer = get_char(iterations, max_iterations);
+            
+            // Imprimir el carácter
+            print c;
+            
+            col = col + 1;
+        }
+        
+        print "\n";
+        row = row + 1;
+    }
+    
+    print "\nLeyenda:\n";
+    print "  ' ' = Dentro del conjunto\n";
+    print "  '.', ':', '+', '*', '#' = Fuera (escape rápido a lento)\n";
+    
+    return 0;
+}

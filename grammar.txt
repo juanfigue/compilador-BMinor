@@ -86,9 +86,9 @@ Rule 82    empty -> <empty>
 
 Unused terminals:
 
-    AUTO
-    BREAK
     CONTINUE
+    BREAK
+    AUTO
 
 Terminals, with rules where they appear:
 
